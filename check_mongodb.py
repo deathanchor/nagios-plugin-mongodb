@@ -645,7 +645,7 @@ def index_miss_ratio(con, warning, critical, perf_data):
                 miss_ratio = float(data['indexCounters']['btree']['missRatio'])
         except KeyError:
             not_supported_msg = "not supported on this platform"
-            if data['indexCounters'].has_key('note'):
+            if data.has_key('indexCounters') and data['indexCounters'].has_key('note'):
                 print "OK - MongoDB says: " + not_supported_msg
                 return 0
             else:
