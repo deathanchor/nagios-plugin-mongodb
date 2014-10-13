@@ -413,7 +413,7 @@ def check_rep_lag(con, host, port, warning, critical, percent, perf_data, max_la
                             return err
                         primary_timediff = replication_get_time_diff(con)
                         maximal_lag = int(float(maximal_lag) / float(primary_timediff) * 100)
-                        message = "Maximal lag is " + str(maximal_lag) + " percents"
+                        message = "Maximal lag is " + str(maximal_lag) + " percent"
                         message += performance_data(perf_data, [(maximal_lag, "replication_lag_percent", warning, critical)])
                     else:
                         message = "Maximal lag is " + str(maximal_lag) + " seconds"
@@ -448,7 +448,7 @@ def check_rep_lag(con, host, port, warning, critical, percent, perf_data, max_la
                     lag = int(float(lag) / float(primary_timediff) * 100)
                 else:
                     lag = 0
-                message = "Lag is " + str(lag) + " percents"
+                message = "Lag is " + str(lag) + " percent"
                 message += performance_data(perf_data, [(lag, "replication_lag_percent", warning, critical)])
             else:
                 message = "Lag is " + str(lag) + " seconds"
@@ -489,7 +489,7 @@ def check_rep_lag(con, host, port, warning, critical, percent, perf_data, max_la
                     return err
                 primary_timediff = replication_get_time_diff(con)
                 lag = int(float(lag) / float(primary_timediff) * 100)
-                message = "Lag is " + str(lag) + " percents"
+                message = "Lag is " + str(lag) + " percent"
                 message += performance_data(perf_data, [(lag, "replication_lag_percent", warning, critical)])
             else:
                 message = "Lag is " + str(lag) + " seconds"
