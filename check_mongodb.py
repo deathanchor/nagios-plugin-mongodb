@@ -17,6 +17,7 @@
 #   - Dag Stockstad <dag.stockstad@gmail.com>
 #   - @Andor on github
 #   - Erik Kristensen <erik@erikkristensen.com>
+#   - @deathanchor on github
 #
 # USAGE
 #
