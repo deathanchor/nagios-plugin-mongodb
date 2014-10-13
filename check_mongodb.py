@@ -29,6 +29,7 @@ import optparse
 import textwrap
 import re
 import os
+import datetime
 
 try:
     import pymongo
@@ -1462,7 +1463,13 @@ def replication_get_time_diff(con):
     last = lastc.next()
     tfirst = first["ts"]
     tlast = last["ts"]
-    delta = tlast.time - tfirst.time
+    if type(tlast) == type(datetime.datetime.now()):
+        dtdelta = tlast - tfirst
+        delta = (dtdelta.seconds + dtdelta.days * 24 * 3600) # ignoreing the micro
+    else:
+        # for bson.timestamp.Timestamp types
+        delta = tlast.time - tfirst.time
+    # this the number of seconds
     return delta
 
 
