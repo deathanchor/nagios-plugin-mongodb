@@ -145,6 +145,7 @@ def main(argv):
     p.add_option('-q', '--querytype', action='store', dest='query_type', default='query', help='The query type to check [query|insert|update|delete|getmore|command] from queries_per_second')
     p.add_option('-c', '--collection', action='store', dest='collection', default='admin', help='Specify the collection to check')
     p.add_option('-T', '--time', action='store', type='int', dest='sample_time', default=1, help='Time used to sample number of pages faults')
+    p.add_option('-L', '--lock', action='store_true', dest='locks', default=False, help='Check only operations with active locks, use with --action current_ops')
 
     options, arguments = p.parse_args()
     host = options.host
@@ -167,6 +168,7 @@ def main(argv):
     database = options.database
     ssl = options.ssl
     replicaset = options.replicaset
+    locks = options.locks
 
     if action == 'replica_primary' and replicaset is None:
         return "replicaset must be passed in when using replica_primary check"
@@ -252,7 +254,7 @@ def main(argv):
     elif action == "replset_quorum":
         return check_replset_quorum(con, perf_data)
     elif action == "current_ops":
-        return check_currentops(con, warning, critical, perf_data)
+        return check_currentops(con, warning, critical, locks, perf_data)
     else:
         return check_connect(host, port, warning, critical, perf_data, user, passwd, conn_time)
 
@@ -1348,34 +1350,59 @@ def check_row_count(con, database, collection, warning, critical, perf_data):
         return exit_with_general_critical(e)
 
 
-def check_currentops(con, warning, critical, perf_data=None):
+def printOpInfo(op):
+    keys = ['opid', 'secs_running', 'op', 'locks', 'query', 'desc', 'insert', 'waitingForLock'];
+    first = 0
+    for type in keys:
+        if type in op:
+            print type + " = " + str.replace( str(op[type]), "u'", "'" )
+
+def check_currentops(con, warning, critical, locks, perf_data=None):
+    # warn/crit when any op taking more than this time (seconds)
     warning = warning or 15
     critical = critical or 30
-    warnings = 0
-    criticals = 0
-    message = ''
+    overwarning = 0
+    overcritical = 0
+    critops = []
+    warnops = []
 
     try:
         data = con.database.current_op()
-        count = len(data['inprog'])
+        count = 0
 
         for op in data['inprog']:
-            if op.get('secs_running') and (op['secs_running'] >= warning or op['secs_running'] >= critical):
-                warnings += 1
-                criticals += 1
-                message += str(op['opid'])
+            if( locks and ( 'locks' not in op or op['active'] != 'True' ) ):
+                continue
+            else:
+                count = count + 1
 
-        if (criticals > critical):
-            print "CRITICAL - " + str(criticals) + " ops found running longer then " + str(critical) + " -- " + message
+            if op.get('secs_running') and (op['secs_running'] >= warning or op['secs_running'] >= critical):
+                if ( op['secs_running'] >= critical ):
+                    overcritical += 1
+                    critops.append(op)
+                else:
+                    overwarning += 1
+                    warnops.append(op)
+            #print "OP:\n" + re.sub("u'", "'", re.sub('([,{])', r"\1\n", str(op) )) + "\n\n";
+            #print "OP:\n" + str(op) + "\n\n";
+
+        if (overcritical > 0):
+            print "CRITICAL - " + str(overcritical) + " ops found running longer then " + str(critical) + "\n"
+            for op in critops:
+                printOpInfo(op);
+                print "\n" 
             return 2
-        elif (warning > warning):
-            print "WARNING - " + str(warnings) + " ops found running longer than " + str(warning) + " -- " + message
+        elif (overwarning > 0):
+            print "WARNING - " + str(overwarning) + " ops found running longer than " + str(warning) + "\n"
+            for op in warnops:
+                printOpInfo(op);
+                print "\n"
             return 1
         else:
             if count == 0:
-                print "OK - No active current opertions"
+                print "OK - No active current opertions" + ( ' with locks.' if locks else '.' )
             else:
-                print "OK - " + str(count) + " active current operations"
+                print "OK - " + str(count) + " active current operations below " + str(warning) + " seconds" + ( ' with locks.' if locks else '.' )
             return 0
 
     except Exception, e:
