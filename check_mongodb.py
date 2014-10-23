@@ -1382,7 +1382,7 @@ def check_currentops(con, warning, critical, locks, perf_data=None):
         count = 0
 
         for op in data['inprog']:
-            if( locks and ( 'locks' not in op or op['active'] != 'True' ) ):
+            if( locks and ( 'locks' not in op or op['active'] != True ) ):
                 continue
             else:
                 count = count + 1
