@@ -149,6 +149,7 @@ def main(argv):
     p.add_option('-c', '--collection', action='store', dest='collection', default='admin', help='Specify the collection to check')
     p.add_option('-T', '--time', action='store', type='int', dest='sample_time', default=1, help='Time used to sample number of pages faults')
     p.add_option('-L', '--lock', action='store_true', dest='locks', default=False, help='Check only operations with active locks, use with --action current_ops')
+    p.add_option('-i', '--ignoreSecondary', action='store_true', dest='ignoreSecondary', default=False, help='Never CRITICAL for secondary machine for --action current_ops')
 
     options, arguments = p.parse_args()
     host = options.host
@@ -172,6 +173,7 @@ def main(argv):
     ssl = options.ssl
     replicaset = options.replicaset
     locks = options.locks
+    ignoreSecondary = options.ignoreSecondary
 
     if action == 'replica_primary':
         err_f, con_f = mongo_connect(host, port, ssl, user, passwd)
@@ -263,7 +265,7 @@ def main(argv):
     elif action == "replset_quorum":
         return check_replset_quorum(con, perf_data)
     elif action == "current_ops":
-        return check_currentops(con, warning, critical, locks, perf_data)
+        return check_currentops(con, warning, critical, locks, ignoreSecondary, perf_data)
     else:
         return check_connect(host, port, warning, critical, perf_data, user, passwd, conn_time)
 
@@ -1389,7 +1391,7 @@ def printOpInfo(op):
         if type in op:
             print type + " = " + str.replace( str(op[type]), "u'", "'" )
 
-def check_currentops(con, warning, critical, locks, perf_data=None):
+def check_currentops(con, warning, critical, locks, ignoreSecondary, perf_data=None):
     # warn/crit when any op taking more than this time (seconds)
     warning = warning or 15
     critical = critical or 30
@@ -1399,6 +1401,8 @@ def check_currentops(con, warning, critical, locks, perf_data=None):
     warnops = []
 
     try:
+        isMaster = con.admin.command("ismaster","1")["ismaster"]
+
         data = con.database.current_op()
         count = 0
 
@@ -1418,7 +1422,7 @@ def check_currentops(con, warning, critical, locks, perf_data=None):
             #print "OP:\n" + re.sub("u'", "'", re.sub('([,{])', r"\1\n", str(op) )) + "\n\n";
             #print "OP:\n" + str(op) + "\n\n";
 
-        if (overcritical > 0):
+        if (overcritical > 0 and (not ignoreSecondary or isMaster) ):
             print "CRITICAL - " + str(overcritical) + " ops found running longer then " + str(critical) + "\n"
             for op in critops:
                 printOpInfo(op);
