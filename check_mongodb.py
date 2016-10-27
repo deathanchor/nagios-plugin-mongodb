@@ -1406,7 +1406,11 @@ def check_currentops(con, warning, critical, locks, ignoreSecondary, perf_data=N
         data = con.database.current_op()
         count = 0
 
+        localre = re.compile('^local')
         for op in data['inprog']:
+            if( localre.match(op['ns']) ): # ignore local db locks
+                continue
+
             if( locks and ( 'locks' not in op or op['active'] != True ) ):
                 continue
             else:
